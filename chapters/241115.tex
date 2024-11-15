@@ -66,9 +66,23 @@
 	
 \end{tcolorbox}
 
-\section{近年来的发展}
+\section{发展和思考}
+1. \textbf{发展}
 
-1. 
+想要提高追踪的效果（精度，速度），可以从多个角度进行提高。大致可以包括几个方面：
+
+仍旧基于BDT框架：追踪器的提升，数据融合方法的提升，数据关联的提升，滤波器的提升（包括模型改进）。
+
+新的框架：端到端\cite{10610979}，基于点的移动的追踪\cite{wu2024moving}。
+
+2. \textbf{思考}
+
+首先确定融合的框架：DBT和神经网络融合结构。
+接着确定数据关联方式，倾向于用特征值（点）
+然后改进滤波器的结构：模型的改进（长时间拟合），噪声的优化（A-KIT）
+最后，连接最新的检测器。
+
+实际实验：标定，ROS表示
 
 
 \chapter{DeepVO: Towards End-to-End Visual Odometry with Deep Recurrent Convolutional Neural Networks"\cite{wang_deepvo_nodate}}

@@ -1,0 +1,99 @@
+% Compile with: xelatex -> biber -> xelatex -> xelatex
+% !TeX program = xelatex
+% !BIB program = biber
+
+
+% 开启盲审格式 blindPeerReview=true (如：[type=bachelor,blindPeerReview=true])
+\documentclass[type=bachelor,blindPeerReview=true]{bithesis}
+
+% 此处仅列出常用的配置。全部配置用法请见「bithesis.pdf」手册。
+\BITSetup{
+  cover = {
+    % 在封面中载入有「北京理工大学」字样的图片，如无必要请勿改动。
+    headerImage = images/header.png,
+    % 在封面标题中使用思源黑体，使用此选项可以保证与 Word 封面标题的字体一致。
+    xiheiFont = STXIHEI.TTF,
+    %% 使用以下参数来自定义封面日期
+    % date = 2022年6月,
+    % 本科生盲审要求删去封面，而不是隐藏封面信息。
+    hideCoverInPeerReview = true,
+  },
+  info = {
+    % 想要让某项封面信息留空（但是保留下划线），请传入空白符组成的字符串，如"{~}"。
+    % 如需要换行，则用 “\\” 符号分割。
+    title = 每周工作总结,
+    author = nuclearslippers,
+    keywords = {状态估计，KALMAN，Transformer},
+  },
+  style = {
+    % 开启 Windows 平台下的中易宋体伪粗体。
+    % windowsSimSunFakeBold = true,
+    head = ,
+  }
+}
+
+\usepackage{listings}
+\usepackage{float}
+\usepackage{xcolor} % 适用颜色框
+\usepackage{tcolorbox}
+\usepackage{bm}
+
+
+% 大部分关于参考文献样式的修改，都可以通过此处的选项进行配置。
+% 详情请搜索「biblatex-gb7714-2015 文档」进行阅读。
+\usepackage[
+  backend=biber,
+  style=gb7714-2015,
+  gbalign=gb7714-2015,
+  gbnamefmt=lowercase,
+  gbpub=false,
+  doi=false,
+  url=false,
+  eprint=false,
+  isbn=false,
+]{biblatex}
+
+% 参考文献引用文件位于 misc/ref.bib
+\addbibresource{misc/ref.bib}
+
+
+% 文档开始
+\begin{document}
+
+% 标题页面
+% \input{misc/0_cover.tex}
+\MakeCover
+
+
+% ====== 原创性声明（PDF 格式）======
+\begin{blindPeerReview}
+  \includepdf{misc/1_originality.pdf}\newpage
+\end{blindPeerReview}
+% ====== 原创性声明（LaTeX 格式）======
+% \input{./misc/1_originality.tex}
+
+% 前置页面定义
+\frontmatter
+
+% 摘要
+%\input{chapters/0_abstract.tex}
+
+% 目录
+%\MakeTOC
+
+% 正文开始
+\mainmatter
+
+\input{chapters/241115.tex}
+
+
+% 后置部分
+\backmatter
+% 结论
+%\input{misc/2_conclusion.tex}
+
+% 参考文献
+\input{misc/3_reference.tex}
+
+
+\end{document}

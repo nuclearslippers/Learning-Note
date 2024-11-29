@@ -1,0 +1,132 @@
+%24.11.25
+\chapter{数据关联的具体实现}
+\section{SORT的实现}
+SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关联问题转换成了一个分配问题，进而可以使用匈牙利算法进行求解。
+分配问题也可以用一个优化问题来进行描述：
+\begin{tcolorbox}
+	对于n×n的代价矩阵C，需要求得最小的总代价。
+	\[
+	\min \sum_{i=1}^n \sum_{j=1}^n c_{ij} x_{ij}
+	\]
+	并且满足以下约束条件：
+	\begin{itemize}
+		\item 每个人只能完成一个任务且必须做一个任务：
+		\[
+		\sum_{i=1}^n x_{ij} = 1 \quad \forall j = 1, 2, \ldots, n
+		\]
+		\item 每个任务只能由一个人完成且必须完成：
+		\[
+		\sum_{j=1}^n x_{ij} = 1 \quad \forall i = 1, 2, \ldots, n
+		\]
+		\item \( x_{ij} \) 是二进制变量：
+		\[
+		x_{ij} \in \{0, 1\} \quad \forall i, j = 1, 2, \ldots, n
+		\]
+	\end{itemize}
+	其中$c_{ij}$表示第i个任务由第j个人完成的代价，$x_{ij}$表示第i个任务是否由第j个人完成。
+\end{tcolorbox}
+
+利用匈牙利算法可以准确得到最优解，其算法流程如Algorithm\ \ref{Hungarian}所示。
+
+\begin{algorithm}[h!]
+	\begin{algorithmic}
+		\State \textbf{输入:} 检测框列表 $D$, 轨迹列表 $T$, IoU 阈值 $\theta$
+		\State \textbf{输出:} 匹配列表 $M$, 未匹配检测框列表 $U_D$, 未匹配轨迹列表 $U_T$
+		
+		\State \textbf{1.构建代价矩阵:}
+		\State $cost\_matrix \leftarrow$ 计算检测框与轨迹之间的代价矩阵
+		\State \textbf{2.矩阵预处理:}
+		\For{每一行 $i$}
+		\State $cost\_matrix[i, :] \leftarrow cost\_matrix[i, :] - \min(cost\_matrix[i, :])$
+		\EndFor
+		\For{每一列 $j$}
+		\State $cost\_matrix[:, j] \leftarrow cost\_matrix[:, j] - \min(cost\_matrix[:, j])$
+		\EndFor
+		
+		\State \textbf{3.寻找零元素并标记:}
+		\State $marked\_zeros \leftarrow$ 使用最少数量的线覆盖所有零元素
+		
+		\State \textbf{4.调整矩阵:}
+		\While{覆盖线的数量不等于矩阵的行数或列数}
+		\State 调整矩阵，重新寻找零元素并标记
+		\State 找到步骤 3 中未被一行覆盖的最小元素（称为 k）。从所有未覆盖的元素中减去 k，然后将 k 添加到覆盖两次的元素中。
+		\EndWhile
+		
+		\State \textbf{5.提取匹配:}
+		\State $M \leftarrow$ 从标记的零元素中提取匹配对
+		\State $U_D \leftarrow$ 未在匹配列表中的检测框索引
+		\State $U_T \leftarrow$ 未在匹配列表中的轨迹索引
+		
+		\State \textbf{返回结果:}
+		\Return $M, U_D, U_T$
+	\end{algorithmic}
+	\caption{匈牙利算法伪代码}
+	\label{Hungarian}
+\end{algorithm}
+
+但是在实际追踪任务中，不一定出现正好n×n的情况，因此需要进行微调。例如出现n×m的情况，解决方法是扩充成n×n，代价矩阵直接补0。
+在具体实现中，SORT还考虑了其它内容，例如去掉未达到阈值的目标，因此其代码还是进行了许多微调，
+具体如Algorithm\ \ref{sort_1}所示。
+
+\begin{algorithm}
+	\begin{algorithmic}
+		\State \textbf{初始化:}
+		\If{追踪器列表为空}
+		\State 返回空匹配列表，所有检测框作为未匹配检测框
+		\EndIf
+		\State \textbf{IoU 矩阵计算:}
+		\State 计算检测框和追踪器之间的 IoU 矩阵
+		\State \textbf{匹配查找:}
+		\State 根据 IoU 阈值将 IoU 矩阵转换为二值矩阵
+		\If{存在一一对应关系}
+		\State 直接使用索引作为匹配
+		\Else
+		\State 使用线性分配算法找到最佳匹配
+		\EndIf
+		\State \textbf{未匹配识别:}
+		\State 通过检查哪些索引不在匹配列表中，识别未匹配的检测框和追踪器
+		\State \textbf{过滤匹配:}
+		\State 过滤掉 IoU 低的匹配，并更新未匹配检测框和追踪器列表
+		\State \textbf{返回结果:}
+		\State 返回匹配列表、未匹配检测框列表和未匹配追踪器列表
+	\end{algorithmic}
+	\caption{SORT的数据关联伪代码}
+	\label{sort_1}
+\end{algorithm}
+
+其中线性分配算法的实现则采用的是lap库的lap.lapjv函数。
+
+\chapter{测量指标}
+1. 匹配单个结果
+
+正负例(positive/negative)的是依据预测值，真假(True/False)是依据实际值。
+
+\begin{table}[h!]
+	\centering
+	\caption{基本概念}
+	\label{tab:confusion_matrix}
+	\begin{tabular}{l c c}
+		\toprule
+		& \textbf{预测正例} & \textbf{预测负例} \\
+		\midrule
+		\textbf{实际正例} & TP & FN \\
+		\textbf{实际负例} & FP & TN \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+2. 召回率
+
+召回率（Recall）是指在所有实际正例中，被模型正确预测为正例的比例。其数学表达式如下：
+
+\[
+\text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
+\]
+
+\chapter{再述数据关联}
+
+\section{数据关联的最大问题}
+数据关联的最大瓶颈是在计算量爆炸的问题。
+
+
+

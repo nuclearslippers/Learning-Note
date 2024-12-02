@@ -1,5 +1,38 @@
 %24.11.25
 \chapter{数据关联的具体实现}
+数据关联的问题可以描述为：
+输入：当前时刻的检测结果（目标的bbox）和之前存储的轨迹
+目标：找出前后两个时刻的相同目标，将他们进行关联。
+
+\textbf{问题1：如何描述两个目标是相同的}
+
+相似度函数:
+设 \(S(\mathbf{x}, \mathbf{y})\) 是目标候选区域 \(\mathbf{x}\) 与前一帧中的目标区域 \(\mathbf{y}\) 之间的总相似度。该相似度函数可以表示为多个部分的加权和。
+
+$$
+	S(\mathbf{x}, \mathbf{y}) = \sum_{i=1}^{n} \omega_i \cdot S_i(\mathbf{x}, \mathbf{y})
+$$
+
+其中，相似度函数的组成部分可能包括以下几种：
+
+\begin{itemize}[itemsep=-3pt]
+	\item 基于外貌特征，一般通过一个神经网络来进行提取RE-ID(DeepSORT)。
+	\item 表示运动学特征，一般用IoU来表示(SORT)。
+	\item 基于形状特征。
+\end{itemize}
+
+\textbf{问题2：数据关联问题重述}
+
+这里重述是为了区别于分配问题。
+
+
+\section{枚举法求解}
+
+
+\section{贪婪算法求解}
+贪婪算法的求解速度显著高于其它算法，虽然其求得可能是局部最优解，不过由于任务的特殊性使得性能得到了保障。
+
+
 \section{SORT的实现}
 SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关联问题转换成了一个分配问题，进而可以使用匈牙利算法进行求解。
 分配问题也可以用一个优化问题来进行描述：
@@ -28,10 +61,10 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 
 利用匈牙利算法可以准确得到最优解，其算法流程如Algorithm\ \ref{Hungarian}所示。
 
-\begin{algorithm}[h!]
+\begin{algorithm}[H]
 	\begin{algorithmic}
 		\State \textbf{输入:} 检测框列表 $D$, 轨迹列表 $T$, IoU 阈值 $\theta$
-		\State \textbf{输出:} 匹配列表 $M$, 未匹配检测框列表 $U_D$, 未匹配轨迹列表 $U_T$
+		\State \textbf{输出:} 匹配列表 $M$
 		
 		\State \textbf{1.构建代价矩阵:}
 		\State $cost\_matrix \leftarrow$ 计算检测框与轨迹之间的代价矩阵
@@ -54,11 +87,9 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 		
 		\State \textbf{5.提取匹配:}
 		\State $M \leftarrow$ 从标记的零元素中提取匹配对
-		\State $U_D \leftarrow$ 未在匹配列表中的检测框索引
-		\State $U_T \leftarrow$ 未在匹配列表中的轨迹索引
 		
 		\State \textbf{返回结果:}
-		\Return $M, U_D, U_T$
+		\Return $M$
 	\end{algorithmic}
 	\caption{匈牙利算法伪代码}
 	\label{Hungarian}
@@ -68,7 +99,7 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 在具体实现中，SORT还考虑了其它内容，例如去掉未达到阈值的目标，因此其代码还是进行了许多微调，
 具体如Algorithm\ \ref{sort_1}所示。
 
-\begin{algorithm}
+\begin{algorithm}[H]
 	\begin{algorithmic}
 		\State \textbf{初始化:}
 		\If{追踪器列表为空}
@@ -94,7 +125,60 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 	\label{sort_1}
 \end{algorithm}
 
-其中线性分配算法的实现则采用的是lap库的lap.lapjv函数。
+其中线性分配算法的实现则采用的是lap库的\texttt{lap.lapjv}函数，具体输入输出和使用例如下所示。
+
+\begin{description}[itemsep=-3pt,parsep=0pt,topsep=3pt]
+	\item[cost\_matrix] 二维数组输入，代价矩阵
+	\item[extend\_cost] 布尔值输入，如果为\texttt{True}，会适当地扩展矩阵
+	\item[const] 数值输出，表示总的最小化代价
+	\item[x] 一个数组输出，表示每个行被分配给哪个列
+	\item[y] 一个数组输出，表示每个列被分配给哪个行
+\end{description}
+
+
+\begin{lstlisting}[language=Python, caption={lapjv example}, label={lst:pythonfile}]
+	import lap
+	import numpy as np
+	
+	def linear_assignment(cost_matrix, extend_cost=True):
+	if extend_cost:
+	# 这里可以根据需要扩展代价矩阵
+	# 例如，如果cost_matrix不是方阵，可以添加无穷大的填充值
+	# 但lap.lapjv通常可以直接处理非方阵，所以这里简化处理
+	pass
+	row_ind, col_ind, cost = lap.lapjv(cost_matrix)
+	return cost, row_ind, col_ind
+	
+	# 示例代价矩阵
+	cost_matrix = np.array([[4, 1, 3], [2, 0, 5], [3, 2, 2]])
+	
+	# 调用函数
+	cost, row_ind, col_ind = linear_assignment(cost_matrix)
+	
+	print("最小代价:", cost)
+	print("行分配:", row_ind)
+	print("列分配:", col_ind)
+\end{lstlisting}
+
+
+
+
+
+\section{学习总结}
+\textbf{分配问题的思考:}
+
+1.分配问题如何解决增减的情况
+
+2.低置信度如何处理
+
+\textbf{提出的算法}
+
+现有n个检查结果，m个轨迹。
+
+设置低阈值。
+先检查轨迹，若某一轨迹与所有的检测结果置信度都低于阈值，剔除该轨迹，不再计算，可能被遮挡或者离开感知区域。
+再检查检测，若某一检测结果与所有的轨迹置信度都低于阈值，剔除该检测，不再计算，可能是新进目标。
+此时问题更加贴近于一个线性分配问题，利用Lapjv算法求解。
 
 \chapter{测量指标}
 1. 匹配单个结果
@@ -123,10 +207,6 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 \text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
 \]
 
-\chapter{再述数据关联}
-
-\section{数据关联的最大问题}
-数据关联的最大瓶颈是在计算量爆炸的问题。
 
 
 

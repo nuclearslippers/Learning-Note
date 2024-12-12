@@ -21,19 +21,15 @@ $$
 	\item 基于形状特征。
 \end{itemize}
 
-\textbf{问题2：数据关联问题重述}
-
-这里重述是为了区别于分配问题。
-
 
 \section{枚举法求解}
-
+首先计算出相似程度，再计算所有轨迹和检测结果匹配情况的总相似情况。最相似即解。
 
 \section{贪婪算法求解}
 贪婪算法的求解速度显著高于其它算法，虽然其求得可能是局部最优解，不过由于任务的特殊性使得性能得到了保障。
 
 
-\section{SORT的实现}
+\section{SORT的实现：匈牙利算法}
 SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关联问题转换成了一个分配问题，进而可以使用匈牙利算法进行求解。
 分配问题也可以用一个优化问题来进行描述：
 \begin{tcolorbox}
@@ -160,6 +156,7 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 	print("列分配:", col_ind)
 \end{lstlisting}
 
+\section{DeepSORT的RE-id}
 
 
 
@@ -179,6 +176,26 @@ SORT论文中说到采用的是匈牙利算法。实际上，这是将数据关�
 先检查轨迹，若某一轨迹与所有的检测结果置信度都低于阈值，剔除该轨迹，不再计算，可能被遮挡或者离开感知区域。
 再检查检测，若某一检测结果与所有的轨迹置信度都低于阈值，剔除该检测，不再计算，可能是新进目标。
 此时问题更加贴近于一个线性分配问题，利用Lapjv算法求解。
+
+\chapter{仿真实现}
+1. SORT追踪器的复现
+
+完成了SORT追踪器的复现，其采用的数据关联算法是运动学特征+匈牙利匹配+轨迹管理。
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.8\textwidth]{images/sort.png}
+\end{figure}
+
+
+2. RoboMaster比赛准备
+
+顺利将RoboMaster比赛的模拟器部署，测试了提供的基本服务起飞降落，运行了Faster-LIO实现激光雷达的定位。
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=0.8\textwidth]{images/robo/lio.png}
+\end{figure}
+
 
 \chapter{测量指标}
 1. 匹配单个结果
